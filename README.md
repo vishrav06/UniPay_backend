@@ -84,59 +84,7 @@ All errors return JSON in the format:
 - `410` - Gone (QR code expired - older than 60 seconds)
 - `500` - Internal Server Error
 
-## Project Structure
 
-```
-Backend/
-├── app.js                          # Main Express app
-├── config/
-│   └── supabase.js                # Supabase client setup
-├── routes/
-│   ├── transactions.js            # Transaction routes
-│   ├── students.js                # Student routes
-│   ├── vendors.js                 # Vendor routes
-│   └── admin.js                   # Admin analytics routes
-├── controllers/
-│   ├── transactionController.js   # Transaction business logic
-│   ├── studentController.js       # Student business logic
-│   ├── vendorController.js        # Vendor business logic
-│   └── adminController.js         # Admin business logic
-├── middleware/
-│   └── errorHandler.js            # Global error handling
-├── .env                           # Environment variables (not in git)
-├── .gitignore
-└── package.json
-```
-
-## Key Features
-
-- **Password Authentication** - Bcrypt hashing with PostgreSQL pgcrypto extension
-- **Role-Based Access** - Users have roles (student, vendor, admin)
-- **QR Code Security** - QR codes expire after 60 seconds to prevent replay attacks
-- **Active User Validation** - Transactions only allowed for active students/vendors
-- **Frontend Never Calculates** - All totals come from SQL views
-- **Backend Never Stores Balances** - Balances calculated on-demand from transactions
-- **Append-Only Transactions** - Transactions are never modified or deleted
-- **UTC Timestamps** - All timestamps stored in UTC
-- **SQL View Analytics** - Analytics powered by database views, not backend aggregation
-
-## Testing
-
-Use Postman, Thunder Client, or curl to test endpoints.
-
-Example transaction creation:
-```bash
-curl -X POST http://localhost:3000/api/transactions \
-  -H "Content-Type: application/json" \
-  -d '{"registration_number":"21BCE123","vendorid":1,"amount":150.50,"qr_timestamp":"2026-02-09T10:30:00.000Z"}'
-```
-
-**Note**: The `qr_timestamp` must be in ISO 8601 format and less than 60 seconds old.
-
-Example student profile:
-```bash
-curl http://localhost:3000/api/students/21BCE123
-```
 
 ## Database Schema
 
@@ -154,10 +102,6 @@ SQL Views:
 - `student_monthly_spending` - Monthly spending per student
 - `vendor_monthly_earnings` - Monthly earnings per vendor
 
-**Authentication**:
-- Passwords are hashed using bcrypt (one-way, irreversible)
-- Login verification uses `crypt()` function to compare hashes
-- Never stores or returns plain text passwords
 
 **Access Control**:
 - Transactions are only allowed if both the student and vendor have `active = true` in the `Users` table.

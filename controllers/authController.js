@@ -12,46 +12,91 @@ const login = async (req, res, next) => {
       });
     }
 
-    // Use PostgreSQL's crypt() to verify password
-    // This query will only return a row if the password matches
-    const { data: user, error } = await supabase
-      .rpc('verify_user_password', {
-        user_email: email,
-        user_password: password
-      });
+    // Query user from database
+    const { data: users, error: queryError } = await supabase
+      .from('Users')
+      .select('email, name, password, role, active')
+      .eq('email', email)
+      .limit(1);
 
-    if (error) {
-      console.error('Login error:', error);
+    if (queryError) {
+      console.error('Login error:', queryError);
       return res.status(500).json({
         error: 'Login failed',
-        details: error.message
+        details: queryError.message
       });
     }
 
-    if (!user || user.length === 0) {
+    if (!users || users.length === 0) {
       return res.status(401).json({
         error: 'Invalid credentials',
         details: 'Email or password is incorrect'
       });
     }
 
+    const user = users[0];
+
     // Check if user is active
-    if (!user[0].active) {
+    if (!user.active) {
       return res.status(403).json({
         error: 'Account inactive',
         details: 'Your account has been deactivated. Please contact support.'
       });
     }
 
-    // Login successful - return user info (without password_hash)
+    // Simple password check (plain text comparison)
+    if (user.password !== password) {
+      return res.status(401).json({
+        error: 'Invalid credentials',
+        details: 'Email or password is incorrect'
+      });
+    }
+
+    // Get role-specific data
+    let userData = {
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      active: user.active
+    };
+
+    // Fetch student-specific data
+    if (user.role === 'student') {
+      const { data: student } = await supabase
+        .from('students')
+        .select('registration_number, phoneno, parent_email, spending_limit')
+        .eq('email', email)
+        .single();
+
+      if (student) {
+        userData.registration_number = student.registration_number;
+        userData.phoneno = student.phoneno;
+        userData.parent_email = student.parent_email;
+        userData.spending_limit = student.spending_limit;
+      }
+    }
+
+    // Fetch vendor-specific data
+    if (user.role === 'vendor') {
+      const { data: vendor } = await supabase
+        .from('vendors')
+        .select('vendorid, vendor_name, phoneno, stall_location, fixed_biweekly')
+        .eq('email', email)
+        .single();
+
+      if (vendor) {
+        userData.vendorid = vendor.vendorid.toString();
+        userData.vendor_name = vendor.vendor_name;
+        userData.phoneno = vendor.phoneno;
+        userData.stall_location = vendor.stall_location;
+        userData.fixed_biweekly = vendor.fixed_biweekly;
+      }
+    }
+
+    // Login successful - return user info
     res.status(200).json({
       success: true,
-      user: {
-        email: user[0].email,
-        name: user[0].name,
-        role: user[0].role,
-        active: user[0].active
-      }
+      user: userData
     });
 
   } catch (error) {
@@ -94,14 +139,18 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Use PostgreSQL's crypt() to hash password
+    // Insert new user with plain text password
     const { data: newUser, error } = await supabase
-      .rpc('create_user_with_hash', {
-        user_email: email,
-        user_name: name,
-        user_password: password,
-        user_role: role
-      });
+      .from('Users')
+      .insert([{
+        email: email,
+        name: name,
+        password: password,  // Plain text password
+        role: role,
+        active: true
+      }])
+      .select()
+      .single();
 
     if (error) {
       console.error('Registration error:', error);
@@ -115,9 +164,9 @@ const register = async (req, res, next) => {
       success: true,
       message: 'User registered successfully',
       user: {
-        email: email,
-        name: name,
-        role: role
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role
       }
     });
 

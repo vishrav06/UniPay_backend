@@ -22,7 +22,6 @@
   "homepage": "https://github.com/vishrav06/UniPay_backend#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
-    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
